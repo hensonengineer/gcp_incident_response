@@ -1,0 +1,40 @@
+##Security Incident Response Playbook for GCP API Key Compromise##
+
+  #Step 1: Initial Response
+    #Confirmation of Incident:
+
+    #Verify the authenticity of the incident through initial logs or alerts related to the compromised key.
+    #Disable or Delete the Compromised GCP API Key to prevent further unauthorized access
+
+gcloud iam service-accounts keys disable COMPROMISED_KEY_ID --iam-account SERVICE_ACCOUNT_EMAIL
+
+  #Create new keys for the service account and update applications accordingly:
+
+gcloud iam service-accounts keys create --iam-account SERVICE_ACCOUNT_EMAIL NEW_KEY.json
+
+    #add new key to Secret Manager 
+
+gcloud secrets create [SECRET_NAME] --replication-policy="automatic"
+gcloud secrets versions add [SECRET_NAME] --data-file=[KEY_FILE].json
+
+
+  #Step 2: Investigation
+
+  #Determining the Compromise Timeline:
+
+    #Use Stackdriver Logging to query for log entries associated with the compromised key:
+
+gcloud logging read "protoPayload.authenticationInfo.principalEmail='SERVICE_ACCOUNT_EMAIL' AND protoPayload.authenticationInfo.authoritySelector='COMPROMISED_KEY_ID'" --limit 1 --format 'value(timestamp)'
+
+    #Query Stackdriver Logging for API calls made using the compromised key:
+
+gcloud logging read "protoPayload.authenticationInfo.principalEmail='SERVICE_ACCOUNT_EMAIL' AND protoPayload.authenticationInfo.authoritySelector='COMPROMISED_KEY_ID'" --format 'value(protoPayload.resourceName)'
+
+    #Check for IAM Resource Creation:
+
+gcloud logging read "protoPayload.serviceName='iam.googleapis.com' AND protoPayload.authenticationInfo.principalEmail='SERVICE_ACCOUNT_EMAIL' AND protoPayload.authenticationInfo.authoritySelector='COMPROMISED_KEY_ID' AND (protoPayload.methodName:'CreateServiceAccount' OR protoPayload.methodName:'CreateRole')" --format 'value(protoPayload.methodName, protoPayload.resourceName)'
+
+  #Step 4: Communication and Documentation
+    #Incident Reporting:
+    #Document the incident details, actions taken, resources accessed, and any remediation steps.
+    #Notify relevant stakeholders or authorities about the incident and actions taken.
