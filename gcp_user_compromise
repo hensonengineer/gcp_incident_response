@@ -1,0 +1,33 @@
+##Security Incident Response Playbook: GCP IAM User Identity Compromise##
+  #Step 1: Initial Response
+    #Confirmation of Incident:
+
+    #Verify the authenticity of the incident through initial logs or alerts related to the compromised IAM user.
+    #Disable the Compromised IAM User's Access; Reset the user's password:
+
+gcloud iam users update COMPROMISED_USER_EMAIL --update-password
+
+    #Deactivate all access keys associated with the user; List and deactivate the user's service account keys:
+
+for key in $(gcloud iam service-accounts keys list --iam-account COMPROMISED_USER_EMAIL --managed-by user --format='value(name)'); do
+    gcloud iam service-accounts keys delete $key --iam-account COMPROMISED_USER_EMAIL
+done
+
+  #Step 2: Investigation
+    #Determining the Compromise Timeline:
+
+gcloud logging read "logName=projects/[PROJECT_ID]/logs/cloudaudit.googleapis.com%2Factivity AND protoPayload.authenticationInfo.principalEmail=COMPROMISED_USER_EMAIL" --limit 1 --format 'value(timestamp)'
+
+    #List Resources Accessed by the User:
+
+gcloud logging read "logName=projects/[PROJECT_ID]/logs/cloudaudit.googleapis.com%2Factivity AND protoPayload.authenticationInfo.principalEmail=COMPROMISED_USER_EMAIL" --format 'value(protoPayload.resourceName)'
+
+    #Check for Unauthorized IAM Resource Creation:
+
+gcloud logging read "logName=projects/[PROJECT_ID]/logs/cloudaudit.googleapis.com%2Factivity AND protoPayload.authenticationInfo.principalEmail=COMPROMISED_USER_EMAIL AND (protoPayload.methodName:'CreateServiceAccount' OR protoPayload.methodName:'CreateRole')" --format 'value(protoPayload.methodName, protoPayload.resourceName)'
+
+
+  #Step 3: Containment and Mitigation
+    #Review and Remove Unauthorized Changes:
+    #Inspect and reverse any unauthorized changes or resource creation by the compromised user.
+    #Review IAM policies and permissions associated with the user to ensure they have not been altered inappropriately.
