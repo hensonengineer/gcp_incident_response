@@ -1,0 +1,36 @@
+##Incident Response Playbook: GCP Compute Engine Instance Compromise with Bitcoin Miner##
+#Isolating VM, keeping running memory intact for Forensics
+
+  #1. Initial Response and Assessment
+    #Identify and confirm the presence of cryptocurrency mining software on the Compute Engine instance.
+    #Log the detection time and actions taken.
+
+  #2. Communication
+    #Notify relevant team members and management.
+    #Prepare external stakeholder communication without revealing sensitive details.
+
+  #3. Isolation of Compromised Compute Engine Instance
+    #Create a Forensic VPC:
+
+gcloud compute networks create forensic-vpc --subnet-mode=custom
+
+  #Create a Forensic Subnet within the VPC:
+
+gcloud compute networks subnets create forensic-subnet --network=forensic-vpc --range=10.0.1.0/24
+
+  #Create an Isolation Firewall Rule:
+  #Allow only specific traffic (e.g., SSH) to the compromised instance:
+
+gcloud compute firewall-rules create isolation-fw --direction=INGRESS --priority=1000 --network=forensic-vpc --action=ALLOW --rules=tcp:22 --source-ranges=10.0.1.10/32
+gcloud compute firewall-rules create isolation-fw-egress --direction=EGRESS --priority=1000 --network=forensic-vpc --action=ALLOW --rules=tcp:22 --destination-ranges=10.0.1.10/32
+
+  #Update the Network Tags on the Compromised Instance:
+
+gcloud compute instances add-tags INSTANCE_NAME --tags=isolation-tag --zone=INSTANCE_ZONE
+
+  #4. Snapshot Creation for Forensics
+    #Create a Snapshot of the Compromised Instance:
+
+gcloud compute disks snapshot INSTANCE_DISK --snapshot-names=forensic-snapshot --zone=INSTANCE_ZONE
+
+5. Report and Document
