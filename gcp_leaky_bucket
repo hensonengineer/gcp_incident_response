@@ -1,0 +1,34 @@
+##Incident Response Playbook: GCP Misconfigured Bucket Allowing Public Read##
+
+  #1. Initial Response and Assessment
+    #Identify the misconfigured GCS bucket and the Data Classification Type contained.
+    #Log the detection time and actions taken.
+
+  #2. Communication
+    #Notify relevant team members and management.
+    #Prepare external stakeholder communication without revealing sensitive details.
+
+  #3. Investigation and Assessment of Access
+
+    #Enable Access Logging on the Bucket (if not already enabled):
+
+gsutil mb -l [BUCKET_LOCATION] gs://[LOG_BUCKET]
+gsutil acl ch -g cloud-storage-analytics@google.com:W gs://[LOG_BUCKET]
+gsutil logging set on -b gs://[LOG_BUCKET] -o [LOG_OBJECT_PREFIX] gs://[MISCONFIGURED_BUCKET]
+
+    #If Access Logs were ON BEFORE the Incident, Download access logs:
+
+gsutil cp gs://[LOG_BUCKET]/[LOG_OBJECT_PREFIX]* .
+
+    #If Access logs were NOT on before the Incident
+
+gcloud logging read "resource.type=gcs_bucket AND resource.labels.bucket_name=[BUCKET_NAME] AND timestamp>='[START_TIME]' AND timestamp<='[END_TIME]'" --limit [NUMBER_OF_ENTRIES] --format=json
+
+    #Use log analysis tools to parse and inspect the access logs for read events, including timestamps and, if available, IP addresses.
+
+  #4. Lock Down the Bucket
+
+gsutil iam ch allUsers:None gs://[MISCONFIGURED_BUCKET]
+gsutil defacl set private gs://[MISCONFIGURED_BUCKET]
+
+  #5. Document and Communicate INC as per Company Policy per Data Classification Type
